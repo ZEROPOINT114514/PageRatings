@@ -1,0 +1,91 @@
+{
+	"name": "PageRating",
+	"version": "1.1.0",
+	"author": [
+		"PageRating Contributors"
+	],
+	"url": "https://www.mediawiki.org/wiki/Extension:PageRating",
+	"descriptionmsg": "pagerating-desc",
+	"license-name": "MIT",
+	"type": "wikibase",
+	"requires": {
+		"MediaWiki": ">= 1.42.0"
+	},
+	"AutoloadNamespaces": {
+		"MediaWiki\\Extension\\PageRating\\": "includes/"
+	},
+	"MessagesDirs": {
+		"PageRating": [
+			"i18n"
+		]
+	},
+	"ExtensionMessagesFiles": {
+		"PageRatingMagic": "PageRating.i18n.magic.php",
+		"PageRatingAliases": "i18n/PageRating.i18n.aliases.php"
+	},
+	"SpecialPages": {
+		"ViewRatings": "MediaWiki\\Extension\\PageRating\\SpecialViewRatings"
+	},
+	"APIModules": {
+		"vote": "MediaWiki\\Extension\\PageRating\\ApiVote",
+		"voters": "MediaWiki\\Extension\\PageRating\\ApiVoters"
+	},
+	"Hooks": {
+		"BeforePageDisplay": "MediaWiki\\Extension\\PageRating\\Hooks::onBeforePageDisplay",
+		"PageSaveComplete": "MediaWiki\\Extension\\PageRating\\Hooks::onPageSaveComplete",
+		"LoadExtensionSchemaUpdates": "MediaWiki\\Extension\\PageRating\\Hooks::onLoadExtensionSchemaUpdates",
+		"ParserFirstCallInit": "MediaWiki\\Extension\\PageRating\\PageratingParserFunction::onParserFirstCallInit",
+		"SpecialPage_initList": "MediaWiki\\Extension\\PageRating\\Hooks::onSpecialPage_initList"
+	},
+	"ResourceFileModulePaths": {
+		"localBasePath": "",
+		"remoteExtPath": "PageRating"
+	},
+	"ResourceModules": {
+		"ext.pageRating.styles": {
+			"styles": [
+				"resources/ext.pageRating.css"
+			],
+			"position": "top"
+		},
+		"ext.pageRating.scripts": {
+			"scripts": [
+				"resources/ext.pageRating.js"
+			]
+		},
+		"ext.pageRating.voters": {
+			"scripts": [
+				"resources/ext.pageRating.voters.js"
+			],
+			"dependencies": [
+				"mediawiki.api"
+			]
+		}
+	},
+	"ServiceWiringFiles": [
+		"includes/ServiceWiring.php"
+	],
+	"config": {
+		"PageRatingTemplateName": {
+			"description": "模板名称（不含 Template: 前缀），用于自动登记评分页",
+			"public": true,
+			"value": "Vote"
+		},
+		"PageRatingSpecialPagePath": {
+			"description": "Special 页友好路径，默认 '查看文章评分'",
+			"public": true,
+			"value": "查看文章评分"
+		},
+		"PageRatingAnonAllowed": {
+			"description": "是否允许匿名用户投票",
+			"public": true,
+			"value": false
+		},
+		"PageRatingSelfVoteAllowed": {
+			"description": "是否允许页面作者给自己投票",
+			"public": true,
+			"value": true
+		}
+	},
+	"manifest_version": 2
+}

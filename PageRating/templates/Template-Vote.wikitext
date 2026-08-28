@@ -1,0 +1,27 @@
+<!--
+  Template:Vote / 投票
+  ============================================================
+  Put this on `Template:Vote` in your wiki.
+  Users can then drop the widget on any page via {{Vote|...}}.
+
+  This template uses the <pagerating> extension TAG — tag output is
+  NOT passed through MediaWiki's HTML sanitizer, so the <input>,
+  <label>, <button> and <script> elements inside the widget render
+  correctly. (A parser function would have all those tags escaped.)
+
+  Parameters (all optional):
+    {{{background|}}} or {{{1|}}}   image filename or full URL for the background
+    {{{title1|}}} or {{{2|}}}       first line of the collapsed card
+    {{{title2|}}} or {{{3|}}}       second line (subtitle) of the collapsed card
+
+  Usage examples:
+    {{Vote}}                                                             <- defaults
+    {{Vote|Clipboard_Screenshot.png|2025第一届|优竞强化月}}              <- image + titles
+    {{Vote|background=Clipboard_Screenshot.png|title1=2025第一届|title2=优竞强化月}}
+    {{Vote|background=https://example.com/bg.webp|title1=A|title2=B}}    <- remote image
+  ============================================================
+--><pagerating
+    background="{{{background|{{{1|Thebackrooms.jpg}}}}}}"
+    title1="{{{title1|{{{2|棍母}}}}}}"
+    title2="{{{title2|{{{3|棍父}}}}}}"
+/>

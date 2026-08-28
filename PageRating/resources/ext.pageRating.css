@@ -1,0 +1,348 @@
+/* ==========================================================================
+   PageRating - frontend styling for the {{投票}} widget and the special page
+   --------------------------------------------------------------------------
+   The widget uses CSS custom properties so every user can override the
+   look-and-feel by adding to MediaWiki:Common.css, e.g.:
+       --pr-bg-color: #0a2e5c;
+   ========================================================================== */
+
+/* CSS variables (defaults) ---------------------------------------------------- */
+:root {
+	--pr-radius: 16px;
+	--pr-fg-color: #ffffff;
+	--pr-fg-color-dim: rgba(255, 255, 255, 0.7);
+	--pr-overlay: rgba(0, 0, 0, 0.42);
+	--pr-border: 1px solid rgba(255, 255, 255, 0.08);
+	--pr-card-bg: rgba(0, 0, 0, 0.55);
+	--pr-bg-image: linear-gradient(135deg, #2a6f97, #014f86);
+	--pr-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+	--pr-accent: #ffe066;
+	--pr-radio-size: 18px;
+	--pr-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+/* === Top-level widget container ============================================ */
+.pagerating-widget {
+	display: block;
+	width: 100%;
+	max-width: 560px;
+	margin: 1.2em auto;
+	font-family: var(--pr-font-family);
+	color: var(--pr-fg-color);
+	border-radius: var(--pr-radius);
+	box-shadow: var(--pr-shadow);
+	overflow: hidden;
+	background: var(--pr-overlay);
+	position: relative;
+}
+
+/* The background image is set via inline style from the template, but a
+   default gradient is also declared for situations where the template
+   omitted a background. */
+.pagerating-widget {
+	background-image: var(--pr-bg-image);
+	background-size: cover;
+	background-position: center;
+}
+
+/* === Collapsed card (default + hover) ===================================== */
+.pagerating-collapsed {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 56px 24px;
+	min-height: 180px;
+	text-align: center;
+	cursor: pointer;
+	transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+	            filter 200ms cubic-bezier(0.16, 1, 0.3, 1),
+	            background 200ms ease;
+	backdrop-filter: blur(2px);
+	user-select: none;
+	outline: none;
+}
+
+.pagerating-collapsed:hover,
+.pagerating-collapsed:focus-visible {
+	transform: scale(1.01);
+	filter: brightness(1.08);
+}
+
+.pagerating-collapsed--default {
+	background: rgba(0, 0, 0, 0.30);
+}
+
+.pagerating-collapsed--hover {
+	background: rgba(0, 0, 0, 0.55);
+	display: none; /* shown via JS hover swap */
+	pointer-events: none; /* click passes through to .pagerating-collapsed--default */
+}
+
+.pagerating-widget:hover .pagerating-collapsed--default { display: none; }
+.pagerating-widget:hover .pagerating-collapsed--hover { display: flex; }
+
+.pagerating-collapsed__title {
+	margin: 0;
+	font-size: clamp(20px, 4vw, 36px);
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	line-height: 1.2;
+	text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+
+.pagerating-collapsed__subtitle {
+	margin-top: 14px;
+	font-size: clamp(14px, 2.4vw, 20px);
+	color: var(--pr-fg-color-dim);
+	font-weight: 500;
+	text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* === Expanded card (voted) =============================================== */
+/* The form is rendered with display:none so it doesn't flash before the
+   JS binds. The JS swaps to display:block on click of the collapsed card. */
+.pagerating-expanded {
+	display: none;
+	flex-direction: column;
+	justify-content: center;
+	padding: 32px 28px;
+	background: rgba(8, 14, 28, 0.55);
+	min-height: 220px;
+}
+
+.pagerating-widget--open .pagerating-collapsed { display: none !important; }
+.pagerating-widget--open .pagerating-expanded { display: flex !important; }
+
+.pagerating-widget--voted .pagerating-collapsed { display: none !important; }
+.pagerating-widget--voted .pagerating-expanded { display: flex !important; }
+
+.pagerating-expanded__heading {
+	font-size: 18px;
+	font-weight: 600;
+	text-align: left;
+	margin: 0 0 20px;
+	color: var(--pr-fg-color);
+}
+
+.pagerating-expanded__heading-page {
+	color: var(--pr-accent);
+	font-weight: 700;
+	margin-left: 0.25em;
+}
+
+.pagerating-options {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.pagerating-option {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pagerating-option:last-child {
+	border-bottom: 0;
+}
+
+.pagerating-option__radio {
+	appearance: none;
+	-webkit-appearance: none;
+	width: var(--pr-radio-size);
+	height: var(--pr-radio-size);
+	border-radius: 50%;
+	border: 2px solid #cccccc;
+	background: #fff;
+	cursor: pointer;
+	transition: background 150ms ease, border-color 150ms ease;
+	flex-shrink: 0;
+}
+
+.pagerating-option__radio:checked {
+	background: var(--pr-accent);
+	border-color: var(--pr-accent);
+	box-shadow: 0 0 0 3px rgba(255, 224, 102, 0.25);
+}
+
+.pagerating-option__label {
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 36px;
+}
+
+.pagerating-option__name {
+	font-size: 16px;
+	font-weight: 500;
+	color: var(--pr-fg-color);
+}
+
+.pagerating-option__bar {
+	flex: 1;
+	height: 4px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 2px;
+	position: relative;
+	overflow: hidden;
+	min-width: 60px;
+}
+
+.pagerating-option__bar-fill {
+	position: absolute;
+	inset: 0;
+	background: var(--pr-fg-color);
+	transform-origin: left center;
+	transform: scaleX(var(--pr-bar-fill, 0.0));
+	transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pagerating-option--positive .pagerating-option__bar-fill { background: #6cb86c; }
+.pagerating-option--positive-05 .pagerating-option__bar-fill { background: #94c474; }
+.pagerating-option--zero .pagerating-option__bar-fill { background: #888; }
+.pagerating-option--negative-05 .pagerating-option__bar-fill { background: #d08858; }
+.pagerating-option--negative .pagerating-option__bar-fill { background: #c66; }
+.pagerating-option--cancel .pagerating-option__bar-fill { background: transparent; }
+
+.pagerating-option__count {
+	font-variant-numeric: tabular-nums;
+	font-size: 16px;
+	color: var(--pr-fg-color);
+	min-width: 24px;
+	text-align: right;
+}
+
+/* When user already voted, this one is highlighted */
+.pagerating-option--selected .pagerating-option__name {
+	color: var(--pr-accent);
+	font-weight: 700;
+}
+
+/* === Meta row + submit ================================================== */
+.pagerating-meta {
+	margin-top: 24px;
+	text-align: center;
+	font-size: 13px;
+	color: var(--pr-fg-color-dim);
+}
+
+.pagerating-button {
+	display: inline-block;
+	margin-top: 12px;
+	padding: 8px 28px;
+	background: transparent;
+	border: 1px solid var(--pr-fg-color);
+	border-radius: 999px;
+	color: var(--pr-fg-color);
+	cursor: pointer;
+	font-size: 16px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	transition: background 150ms ease, color 150ms ease;
+}
+
+.pagerating-button:hover {
+	background: var(--pr-fg-color);
+	color: #111;
+}
+
+.pagerating-button[disabled],
+.pagerating-button.is-busy {
+	opacity: 0.6;
+	cursor: progress;
+}
+
+/* === Special page (table) ============================================== */
+.pagerating-table {
+	margin: 1em 0;
+}
+
+.pagerating-table th,
+.pagerating-table td {
+	padding: 6px 10px;
+	vertical-align: middle;
+}
+
+.pagerating-table .pagerating-rank {
+	width: 48px;
+	text-align: right;
+}
+
+.pagerating-table .pagerating-score {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+.pagerating-score-pos { color: #2e7d32; }
+.pagerating-score-neg { color: #c62828; }
+
+.pagerating-table .pagerating-count,
+.pagerating-table .pagerating-total {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.pagerating-empty {
+	padding: 2em 0;
+	text-align: center;
+	color: #777;
+}
+
+.pagerating-formula {
+	color: #888;
+	font-size: 13px;
+}
+
+/* === Accessible focus ring ============================================= */
+:focus-visible {
+	outline: 2px solid var(--pr-accent);
+	outline-offset: 3px;
+}
+
+/* === Responsive ======================================================== */
+@media (max-width: 480px) {
+	.pagerating-collapsed { padding: 36px 16px; min-height: 140px; }
+	.pagerating-expanded { padding: 20px 16px; }
+	.pagerating-option__name { font-size: 14px; }
+	.pagerating-option__bar { min-width: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* ------------------------------------------------------------------
+ * Special:ViewRatings — clickable vote counts / voters disclosure
+ * ------------------------------------------------------------------ */
+.pagerating-voters {
+	cursor: pointer;
+	text-decoration: underline dotted;
+}
+.pagerating-voters:hover {
+	text-decoration: underline solid;
+}
+.pagerating-voters-panel {
+	display: block;
+	margin-top: 4px;
+	background: rgba(0, 0, 0, 0.05);
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: 6px;
+	padding: 4px 10px;
+	max-height: 220px;
+	overflow-y: auto;
+	font-size: 0.9em;
+	min-width: 110px;
+}
+.pagerating-voters-panel ul {
+	margin: 0;
+	padding-left: 18px;
+}

@@ -1,0 +1,220 @@
+<?php
+/**
+ * Special:查看文章评分 - rating overview page.
+ *
+ * Renders a sortable table of all rated pages, ordered by score DESC.
+ *
+ * @license MIT
+ */
+
+declare( strict_types = 1 );
+
+namespace MediaWiki\Extension\PageRating;
+
+use MediaWiki\Html\Html;
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Message\Message;
+use MediaWiki\SpecialPage\SpecialPage;
+use MediaWiki\Title\Title;
+
+class SpecialViewRatings extends SpecialPage {
+
+	private Store $store;
+
+	/**
+	 * IMPORTANT: We intentionally do NOT constructor-inject services here.
+	 * SpecialPageFactory constructs special pages via ObjectFactory with
+	 * services-first argument order, and the page name is NOT auto-appended
+	 * — mismatched signatures make the factory fall back to a string, which
+	 * breaks Special:SpecialPages ("Call to a member function isDisabled()
+	 * on string"). Fetching the service inside the class is the robust,
+	 * version-independent approach.
+	 */
+	public function __construct() {
+		parent::__construct( 'ViewRatings' );
+		$this->store = MediaWikiServices::getInstance()->getService( 'PageRating.Store' );
+	}
+
+	/**
+	 * Allow "Special:查看文章评分" via the translated alias (pagePath).
+	 *
+	 * NOTE (MW 1.41+): getDescription() MUST return a Message object;
+	 * returning a string is deprecated and hard-fails in newer versions.
+	 * There is NO Message::newFromText() — simply return $this->msg().
+	 */
+	public function getDescription(): Message {
+		return $this->msg( 'pagerating-special-title' );
+	}
+
+	/** @return string[] */
+	public function getAliases(): array {
+		$path = $this->getConfig()->get( 'PageRatingSpecialPagePath' );
+		if ( $path !== '' ) {
+			return [ $path ];
+		}
+		return parent::getAliases();
+	}
+
+	public function execute( $subPage ): void {
+		$this->setHeaders();
+		$this->outputHeader();
+
+		$out = $this->getOutput();
+		$out->addModuleStyles( 'ext.pageRating.styles' );
+		$out->addModules( 'ext.pageRating.voters' );
+		$out->setPageTitleMsg( $this->msg( 'pagerating-special-title' ) );
+
+		$rows = $this->store->listRankedPages();
+
+		// Lazy cleanup: the PageSaveComplete hook is not fired on MW 1.45+
+		// (replaced by the PageLatestRevisionChanged domain event), so pages
+		// whose {{投票}} template was removed would linger here forever.
+		// Check each page's LATEST wikitext; unregister + skip the ones
+		// that no longer contain the widget.
+		$filtered = [];
+		foreach ( $rows as $row ) {
+			$pageId = (int)$row[0];
+			$title = Title::newFromText( $row[1] );
+			if ( $title && !Hooks::pageHasRatingTemplate( $title ) ) {
+				$this->store->unregisterPage( $pageId );
+				continue;
+			}
+			$filtered[] = $row;
+		}
+
+		$out->addHTML( $this->renderTable( $filtered ) );
+	}
+
+	/**
+	 * Render the ranked table.
+	 *
+	 * @param array<int, array{0:int,1:string,2:float,3:int,4:array}> $rows
+	 */
+	private function renderTable( array $rows ): string {
+		if ( empty( $rows ) ) {
+			return Html::rawElement(
+				'div',
+				[ 'class' => 'pagerating-empty' ],
+				$this->msg( 'pagerating-empty' )->parse()
+			);
+		}
+
+		$html = Html::openElement( 'table', [
+			'class' => 'wikitable sortable pagerating-table',
+			'id'    => 'pagerating-table',
+		] );
+
+		$html .= Html::openElement( 'thead' );
+		$html .= Html::openElement( 'tr' );
+		$headers = [
+			'pagerating-th-rank',
+			'pagerating-th-page',
+			'pagerating-th-score',
+			'pagerating-th-positive1',
+			'pagerating-th-positive05',
+			'pagerating-th-zero',
+			'pagerating-th-negative05',
+			'pagerating-th-negative1',
+			'pagerating-th-total',
+		];
+		foreach ( $headers as $key ) {
+			$html .= Html::element( 'th', [
+				'scope' => 'col',
+				'class' => $key,
+			], $this->msg( $key )->text() );
+		}
+		$html .= Html::closeElement( 'tr' );
+		$html .= Html::closeElement( 'thead' );
+
+		$html .= Html::openElement( 'tbody' );
+		$rank = 0;
+		foreach ( $rows as $row ) {
+			$rank++;
+			[ $pageId, $titleText, $score, $total, $buckets ] = $row;
+
+			$result = new RatingResult( $score, $buckets, $total );
+			$title = Title::newFromText( $titleText );
+			$link = $title ? $title->getLocalURL() : '#';
+
+			$html .= Html::openElement( 'tr' );
+			$html .= Html::element( 'td', [ 'class' => 'pagerating-rank' ], (string)$rank );
+			$html .= Html::rawElement(
+				'td',
+				[ 'class' => 'pagerating-title' ],
+				$title
+					? Html::rawElement( 'a', [ 'href' => $link ], htmlspecialchars( $title->getText() ) )
+					: htmlspecialchars( $titleText )
+			);
+			$html .= Html::element(
+				'td',
+				[ 'class' => 'pagerating-score' . ( $score >= 0 ? ' pagerating-score-pos' : ' pagerating-score-neg' ) ],
+				$result->formattedScore()
+			);
+			$html .= Html::rawElement(
+				'td',
+				[ 'class' => 'pagerating-count' ],
+				$this->renderCountCell( $pageId, Store::VOTE_POS1, $result->positive1() )
+			);
+			$html .= Html::rawElement(
+				'td',
+				[ 'class' => 'pagerating-count' ],
+				$this->renderCountCell( $pageId, Store::VOTE_POS05, $result->positive05() )
+			);
+			$html .= Html::rawElement(
+				'td',
+				[ 'class' => 'pagerating-count' ],
+				$this->renderCountCell( $pageId, Store::VOTE_ZERO, $result->zero() )
+			);
+			$html .= Html::rawElement(
+				'td',
+				[ 'class' => 'pagerating-count' ],
+				$this->renderCountCell( $pageId, Store::VOTE_NEG05, $result->negative05() )
+			);
+			$html .= Html::rawElement(
+				'td',
+				[ 'class' => 'pagerating-count' ],
+				$this->renderCountCell( $pageId, Store::VOTE_NEG1, $result->negative1() )
+			);
+			$html .= Html::element( 'td', [ 'class' => 'pagerating-total' ], (string)$total );
+			$html .= Html::closeElement( 'tr' );
+		}
+		$html .= Html::closeElement( 'tbody' );
+		$html .= Html::closeElement( 'table' );
+
+		$html .= Html::rawElement(
+			'p',
+			[ 'class' => 'pagerating-formula' ],
+			$this->msg( 'pagerating-formula' )->parse()
+		);
+
+		return $html;
+	}
+
+	/**
+	 * Render one bucket-count cell.
+	 * A count > 0 becomes a clickable link carrying pageid/value so the
+	 * voters module can fetch and show who voted; a count of 0 stays a
+	 * plain (non-clickable) "0" per product requirement.
+	 */
+	private function renderCountCell( int $pageId, int $value, int $count ): string {
+		if ( $count <= 0 ) {
+			return '0';
+		}
+		return Html::rawElement(
+			'a',
+			[
+				'href'         => '#',
+				'class'        => 'pagerating-voters',
+				'data-pageid'  => (string)$pageId,
+				'data-value'   => (string)$value,
+				'title'        => $this->msg( 'pagerating-voters-hint' )->text(),
+			],
+			(string)$count
+		);
+	}
+
+	/** @inheritDoc */
+	protected function getGroupName(): string {
+		return 'page-tools';
+	}
+}
