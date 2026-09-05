@@ -168,6 +168,7 @@ class PageratingParserFunction {
 		// Lookup stats
 		$stats   = $store->getVoteStats( $pageId );
 		$current = $store->getUserVote( $pageId, RequestContext::getMain()->getUser() );
+		$locked  = $store->isPageLocked( $pageId );
 
 		// Resolve background into a usable URL
 		$bgUrl = self::resolveBackground( $background );
@@ -183,6 +184,7 @@ class PageratingParserFunction {
 			'pageName' => $pageName,
 			'stats'    => $stats,
 			'current'  => $current,
+			'locked'   => $locked,
 		];
 		$payloadJson = json_encode( $payload, JSON_UNESCAPED_UNICODE );
 
@@ -251,41 +253,21 @@ class PageratingParserFunction {
 		// wiki this size; matches how vote widgets normally behave).
 		$parser->getOutput()->updateCacheExpiry( 0 );
 
-		// 1.1.0: red warning on the sub-template page itself when the
-		// same-named special page already exists (occupied by another
-		// extension or core page). Only shown on the template page, never
-		// on articles that merely transclude it.
-		$warning = '';
-		if ( $group !== '' && $page !== null ) {
-			$hostTitle = Title::newFromPageIdentity( $page );
-			$isSubTemplatePage = false;
-			foreach ( Hooks::getTemplateBaseNames( $config ) as $base ) {
-				$expected = Title::newFromText( $base . '/' . $group, NS_TEMPLATE );
-				if ( $expected && $hostTitle && $hostTitle->equals( $expected ) ) {
-					$isSubTemplatePage = true;
-					break;
-				}
-			}
-			if ( $isSubTemplatePage ) {
-				$conflict = Hooks::getGroupConflict( $group );
-				if ( $conflict !== null ) {
-					$warning = '<div class="pagerating-warning" role="alert" style="color:#f00;background:#ffecec;border:1px solid #f00;border-radius:4px;padding:.5em .75em;margin:.75em 0;font-weight:bold;">'
-						. wfMessage( 'pagerating-warning-conflict' )
-							->params( $group, $conflict )
-							->inContentLanguage()->text()
-						. '</div>';
-				}
-			}
-		}
+		// Locked pages render a disabled "投票已截止" button and the widget
+		// gets a --locked class so hover/click interaction is suppressed.
+		$lockedClass   = $locked ? ' pagerating-widget--locked' : '';
+		$buttonLabel   = $locked
+			? wfMessage( 'pagerating-button-locked' )->text()
+			: wfMessage( 'pagerating-button-vote' )->text();
+		$buttonAttrs   = $locked ? ' disabled' : '';
 
 		// The widget container. Note: the class attribute uses single
 		// underscores only (pagerating_widget) so the CSS/JS can target it
 		// regardless of any attribute mangling.
 		// The invisible #Voting anchor right above lets the client jump
 		// back to the widget after a post-vote hard refresh.
-		return $warning . '<span id="Voting"></span>'
-			. '<div class="pagerating-widget pagerating-widget--initial"'
-			. ' data-pageid="' . (int)$pageId . '"'
+		return '<span id="Voting"></span>'
+			. '<div class="pagerating-widget pagerating-widget--initial' . $lockedClass . '"'
 			. ' data-pagename="' . htmlspecialchars( $pageName, ENT_QUOTES ) . '"'
 			. ' role="region"'
 			. ' aria-label="'
@@ -320,8 +302,8 @@ class PageratingParserFunction {
 			. '<span class="pagerating-meta__total">' . $total . '</span>'
 			. wfMessage( 'pagerating-count-suffix' )->text()
 			. '</div>'
-			. '<button type="button" class="pagerating-button pagerating-button--vote">'
-			. htmlspecialchars( wfMessage( 'pagerating-button-vote' )->text() )
+			. '<button type="button" class="pagerating-button pagerating-button--vote"' . $buttonAttrs . '>'
+			. htmlspecialchars( $buttonLabel )
 			. '</button>'
 			. '</div>'
 			. '</div>'

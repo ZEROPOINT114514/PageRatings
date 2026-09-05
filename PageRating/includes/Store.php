@@ -183,6 +183,123 @@ class Store {
 	}
 
 	// ------------------------------------------------------------------
+	// Voting lock (锁票)
+	// ------------------------------------------------------------------
+
+	/**
+	 * Lock or unlock voting for a single page.
+	 */
+	public function setPageLocked( int $pageId, bool $locked ): void {
+		$db = $this->getDB( DB_PRIMARY );
+		$db->update(
+			'page_rating_pages',
+			[ 'pr_locked' => $locked ? 1 : 0 ],
+			[ 'page_id' => $pageId ],
+			__METHOD__
+		);
+	}
+
+	/**
+	 * Whether voting is locked for a page.
+	 */
+	public function isPageLocked( int $pageId ): bool {
+		$db = $this->getDB( DB_REPLICA );
+		$row = $db->selectRow(
+			'page_rating_pages',
+			[ 'pr_locked' ],
+			[ 'page_id' => $pageId ],
+			__METHOD__
+		);
+		return $row ? ( (int)$row->pr_locked === 1 ) : false;
+	}
+
+	/**
+	 * Lock (or unlock) every page in a rating group.
+	 *
+	 * @param string $group rating group key ('' = base group, 'X' = sub-template)
+	 * @return int number of affected rows
+	 */
+	public function setGroupLocked( string $group, bool $locked ): int {
+		$db = $this->getDB( DB_PRIMARY );
+		$db->update(
+			'page_rating_pages',
+			[ 'pr_locked' => $locked ? 1 : 0 ],
+			[ 'pr_group' => $group ],
+			__METHOD__
+		);
+		return $db->affectedRows();
+	}
+
+	/**
+	 * Count locked pages in a group (for informational display).
+	 */
+	public function countGroupPages( string $group ): int {
+		$db = $this->getDB( DB_REPLICA );
+		return (int)$db->selectRowCount(
+			'page_rating_pages',
+			'*',
+			[ 'pr_group' => $group ],
+			__METHOD__
+		);
+	}
+
+	/**
+	 * Count locked pages in a group.
+	 */
+	public function countLockedGroupPages( string $group ): int {
+		$db = $this->getDB( DB_REPLICA );
+		return (int)$db->selectRowCount(
+			'page_rating_pages',
+			'*',
+			[ 'pr_group' => $group, 'pr_locked' => 1 ],
+			__METHOD__
+		);
+	}
+
+	/**
+	 * Search registered pages by title substring.
+	 *
+	 * @param string $query  empty = list all (capped at $limit)
+	 * @param int    $limit
+	 * @return array<int, array{id:int,ns:int,title:string,group:string,locked:bool}>
+	 */
+	public function searchRegisteredPages( string $query, int $limit = 200 ): array {
+		$db = $this->getDB( DB_REPLICA );
+		$conds = [];
+		if ( $query !== '' ) {
+			// buildLike() returns a COMPLETE LIKE clause already — it includes
+			// the LIKE keyword and an ESCAPE, e.g. `LIKE '%旧夏未落%' ESCAPE '`'`.
+			// So we must only prefix the column name, NOT another `LIKE` keyword
+			// (which would produce `page_title LIKE LIKE …`), and we must append
+			// it as a raw condition ($conds[]) rather than $conds['page_title']
+			// (which would emit `page_title = LIKE …` — an equality that never
+			// matches anything).
+			$conds[] = 'page_title ' . $db->buildLike( $db->anyString(), $query, $db->anyString() );
+		}
+		$rows = $db->select(
+			'page_rating_pages',
+			[ 'page_id', 'page_namespace', 'page_title', 'pr_group', 'pr_locked' ],
+			$conds,
+			__METHOD__,
+			[
+				'ORDER BY' => [ 'page_namespace', 'page_title' ],
+				'LIMIT'    => $limit,
+			]
+		);
+		$out = [];
+		foreach ( $rows as $row ) {
+			$out[] = [
+				'id'     => (int)$row->page_id,
+				'ns'     => (int)$row->page_namespace,
+				'title'  => (string)$row->page_title,
+				'group'  => (string)$row->pr_group,
+				'locked' => ( (int)$row->pr_locked === 1 ),
+			];
+		}
+		return $out;
+	}
+
+	// ------------------------------------------------------------------
 	// Voting
 	// ------------------------------------------------------------------
 

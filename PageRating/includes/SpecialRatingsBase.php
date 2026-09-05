@@ -233,6 +233,8 @@ abstract class SpecialRatingsBase extends SpecialPage {
 
 	/** @inheritDoc */
 	protected function getGroupName(): string {
-		return 'page-tools';
+		// Custom group "pagerating" → shows under the "页面投票" (Page voting)
+		// heading on Special:SpecialPages (see specialpages-group-pagerating).
+		return 'pagerating';
 	}
 }

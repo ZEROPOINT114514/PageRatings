@@ -282,6 +282,7 @@
 				widget.__pageratingStats = payload.stats || null;
 				widget.__pageratingCurrent = payload.current;
 				widget.__pageratingPageName = payload.pageName || '';
+				widget.__pageratingLocked = !!payload.locked;
 				// Show expanded form only if the user already voted.
 				if ( payload.current !== null && payload.current !== undefined ) {
 					widget.classList.add( 'pagerating-widget--voted' );
@@ -293,6 +294,18 @@
 			} catch ( err ) {
 				/* ignore */
 			}
+		}
+
+		// Locked widgets: render the frozen stats and stop — no click-to-open,
+		// no vote button binding, no hover interaction.
+		var locked = widget.classList.contains( 'pagerating-widget--locked' )
+			|| widget.__pageratingLocked === true;
+		if ( locked ) {
+			var stats = widget.__pageratingStats;
+			if ( stats ) {
+				renderBars( widget, stats );
+			}
+			return;
 		}
 
 		var collapsed = widget.querySelector( '.pagerating-collapsed' );

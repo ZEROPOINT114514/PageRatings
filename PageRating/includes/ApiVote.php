@@ -123,6 +123,11 @@ class ApiVote extends ApiBase {
 			$this->dieWithError( 'pagerating-err-notregistered' );
 		}
 
+		// Voting lock: admins/bureaucrats can close voting per page.
+		if ( $this->store->isPageLocked( $pageId ) ) {
+			$this->dieWithError( 'pagerating-err-locked' );
+		}
+
 		// Any Throwable from the store layer must surface as an API error
 		// (HTTP 200 + error JSON) instead of a bare HTTP 500 HTML page —
 		// otherwise the client only sees a useless "请求失败(http)".

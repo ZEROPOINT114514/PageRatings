@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS /*_*/page_rating_pages (
     page_title       VARBINARY(255)      NOT NULL DEFAULT '',
     page_namespace   INT                 NOT NULL DEFAULT 0,
     pr_group         VARBINARY(255)      NOT NULL DEFAULT '',
+    pr_locked        TINYINT(1)          NOT NULL DEFAULT 0,
     registered_at    VARBINARY(14)       NOT NULL DEFAULT '',
     last_vote_at     VARBINARY(14)       NOT NULL DEFAULT '',
     vote_count       INT UNSIGNED        NOT NULL DEFAULT 0,

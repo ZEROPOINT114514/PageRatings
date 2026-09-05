@@ -10,10 +10,9 @@
  * constructor-injected through HookHandlers.
  *
  * 1.1.0: rating groups. Every page using a 投票 sub-template (Template:投票/X) is
- * registered into group X, and the extension dynamically registers a same-named
- * special page (Special:X) that lists all member pages. If that special page name
- * is already taken by another extension/core, the sub-template page shows a red
- * warning instead.
+ * registered into group X. Per-group rankings are surfaced as the
+ * Special:ViewRatings/X sub-page (see SpecialViewRatings), not as separate
+ * same-named special pages.
  *
  * @license MIT
  */
@@ -28,9 +27,6 @@ use MediaWiki\MediaWikiServices;
 use MediaWiki\Title\Title;
 
 class Hooks {
-
-	/** @var array<string,string>|null per-request cache: group => conflict label */
-	private static ?array $groupConflictCache = null;
 
 	/**
 	 * Database schema migrations driven by 'php maintenance/run.php update.php'.
@@ -51,6 +47,12 @@ class Hooks {
 			'page_rating_pages',
 			'pr_group',
 			"$dir/sql/patch_add_pr_group.sql"
+		);
+		// 1.2.0: voting-lock column.
+		$updater->addExtensionField(
+			'page_rating_pages',
+			'pr_locked',
+			"$dir/sql/patch_add_pr_locked.sql"
 		);
 	}
 
@@ -90,82 +92,6 @@ class Hooks {
 	}
 
 	/**
-	 * 1.1.0: dynamically register one Special:<SubPage> per 投票 sub-template.
-	 *
-	 * Specials are registered with the canonical sub-template name ("Crossover"),
-	 * so pages transcluding Template:投票/Crossover get their rankings on
-	 * Special:Crossover. If the name is already taken (core, another extension or
-	 * $wgSpecialPages), the group is skipped and the sub-template page displays a
-	 * red warning via getGroupConflict().
-	 *
-	 * @param array<string,mixed> &$list special-page name => spec
-	 */
-	public static function onSpecialPage_initList( array &$list ): void {
-		self::$groupConflictCache = [];
-		$services = MediaWikiServices::getInstance();
-		$store = $services->getService( 'PageRating.Store' );
-		$config = $services->getMainConfig();
-		$factory = $services->getSpecialPageFactory();
-
-		foreach ( self::getKnownGroups( $store, $config ) as $group ) {
-			if ( $group === '' ) {
-				continue;
-			}
-			if ( !self::isValidSpecialPageName( $group ) ) {
-				self::$groupConflictCache[ $group ] = 'invalid-name';
-				continue;
-			}
-			// Conflict check against canonical names AND localized aliases:
-			// the factory resolves aliases, so getPage() sees the real page.
-			$existing = $factory->getPage( $group );
-			if ( $existing !== null && !( $existing instanceof SpecialGroupRatings ) ) {
-				self::$groupConflictCache[ $group ] =
-					$existing->getName() . ' (' . get_class( $existing ) . ')';
-				continue;
-			}
-			$list[ $group ] = [
-				'class' => SpecialGroupRatings::class,
-				'args'  => [ $group ],
-			];
-		}
-	}
-
-	/**
-	 * Conflict label for a group, or null when the same-named special page is
-	 * registered (by us) and usable. Falls back to resolving the factory live
-	 * when the initList hook did not run in this request.
-	 */
-	public static function getGroupConflict( string $group ): ?string {
-		if ( self::$groupConflictCache !== null ) {
-			return self::$groupConflictCache[ $group ] ?? null;
-		}
-		$services = MediaWikiServices::getInstance();
-		$existing = $services->getSpecialPageFactory()->getPage( $group );
-		if ( $existing === null ) {
-			return 'unregistered';
-		}
-		if ( $existing instanceof SpecialGroupRatings ) {
-			return null;
-		}
-		return $existing->getName() . ' (' . get_class( $existing ) . ')';
-	}
-
-	/**
-	 * Rating groups that get their own same-named special page: ONLY groups
-	 * that actually have rated pages (registry rows). Group names are NOT
-	 * derived from template sub-page names — doing so would register junk
-	 * special pages for stylesheets/doc sub-pages (e.g. '投票/2.css',
-	 * '投票/2019') and clutter Special:SpecialPages.
-	 *
-	 * @return string[] sorted group names (excluding '')
-	 */
-	public static function getKnownGroups( Store $store, Config $config ): array {
-		$groups = $store->getUsedGroups();
-		sort( $groups );
-		return $groups;
-	}
-
-	/**
 	 * Base template page texts that define rating groups.
 	 *
 	 * @return string[]
@@ -176,13 +102,6 @@ class Hooks {
 			$bases,
 			static fn ( $b ) => $b !== '' && $b !== null
 		) ) );
-	}
-
-	public static function isValidSpecialPageName( string $name ): bool {
-		if ( $name === '' || strlen( $name ) > 100 ) {
-			return false;
-		}
-		return !preg_match( '![/:#?&=%"\x5c]!', $name );
 	}
 
 	/**

@@ -1,6 +1,6 @@
 {
 	"name": "PageRating",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"author": [
 		"PageRating Contributors"
 	],
@@ -24,7 +24,9 @@
 		"PageRatingAliases": "i18n/PageRating.i18n.aliases.php"
 	},
 	"SpecialPages": {
-		"ViewRatings": "MediaWiki\\Extension\\PageRating\\SpecialViewRatings"
+		"ViewRatings": "MediaWiki\\Extension\\PageRating\\SpecialViewRatings",
+		"LockVoting": "MediaWiki\\Extension\\PageRating\\SpecialLockVoting",
+		"BatchLockVoting": "MediaWiki\\Extension\\PageRating\\SpecialBatchLockVoting"
 	},
 	"APIModules": {
 		"vote": "MediaWiki\\Extension\\PageRating\\ApiVote",
@@ -34,8 +36,7 @@
 		"BeforePageDisplay": "MediaWiki\\Extension\\PageRating\\Hooks::onBeforePageDisplay",
 		"PageSaveComplete": "MediaWiki\\Extension\\PageRating\\Hooks::onPageSaveComplete",
 		"LoadExtensionSchemaUpdates": "MediaWiki\\Extension\\PageRating\\Hooks::onLoadExtensionSchemaUpdates",
-		"ParserFirstCallInit": "MediaWiki\\Extension\\PageRating\\PageratingParserFunction::onParserFirstCallInit",
-		"SpecialPage_initList": "MediaWiki\\Extension\\PageRating\\Hooks::onSpecialPage_initList"
+		"ParserFirstCallInit": "MediaWiki\\Extension\\PageRating\\PageratingParserFunction::onParserFirstCallInit"
 	},
 	"ResourceFileModulePaths": {
 		"localBasePath": "",

@@ -346,3 +346,37 @@
 	margin: 0;
 	padding-left: 18px;
 }
+
+/* ------------------------------------------------------------------
+ * Voting lock (锁票) — 1.2.0
+ * ------------------------------------------------------------------ */
+.pagerating-widget--locked {
+	opacity: 0.85;
+}
+
+/* Locked widget: no hover lift/zoom, no pointer affordance on the card. */
+.pagerating-widget--locked .pagerating-collapsed {
+	cursor: default;
+	transform: none;
+	filter: none;
+	pointer-events: none;
+}
+.pagerating-widget--locked .pagerating-collapsed:hover,
+.pagerating-widget--locked .pagerating-collapsed:focus-visible {
+	transform: none;
+	filter: none;
+}
+.pagerating-widget--locked:hover .pagerating-collapsed--default { display: flex; }
+.pagerating-widget--locked:hover .pagerating-collapsed--hover { display: none; }
+
+/* The frozen vote button reads "投票已截止". */
+.pagerating-widget--locked .pagerating-button {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+/* Lock management tables (Special:LockVoting / Special:BatchLockVoting). */
+.pagerating-lock-search { margin: 0 0 1em; }
+.pagerating-lock-form { display: inline-block; margin: 0 4px 0 0; }
+.pagerating-lock-status--on { color: #b30000; font-weight: 600; }
+.pagerating-lock-status--off { color: #14866d; font-weight: 600; }

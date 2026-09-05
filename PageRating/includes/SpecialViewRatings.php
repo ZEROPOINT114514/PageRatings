@@ -1,10 +1,10 @@
 <?php
 /**
- * Special:查看文章评分 - ranking overview for the DEFAULT group
- * (pages using the base {{投票}} template / the raw <pagerating> tag).
+ * Special:查看文章评分 - ranking overview.
  *
- * Per-sub-template groups are surfaced by dynamic same-named special pages
- * (see SpecialGroupRatings and Hooks::onSpecialPage_initList).
+ * Handles both the default group (Special:ViewRatings — pages using the base
+ * {{投票}} template) and per-sub-template groups via the Special:ViewRatings/X
+ * sub-page form (e.g. Special:ViewRatings/CrossOver for Template:投票/CrossOver).
  *
  * @license MIT
  */
@@ -20,26 +20,48 @@ use MediaWiki\Title\Title;
 
 class SpecialViewRatings extends SpecialRatingsBase {
 
+	/** Rating group currently being shown ('' = default group). */
+	private string $activeGroup = '';
+
 	public function __construct() {
 		parent::__construct( 'ViewRatings' );
 	}
 
+	/**
+	 * A sub-page (Special:ViewRatings/CrossOver) selects the corresponding
+	 * rating group; the bare Special:ViewRatings shows the default group.
+	 */
+	public function execute( $subPage ): void {
+		$this->activeGroup = '';
+		if ( is_string( $subPage ) && $subPage !== '' ) {
+			$group = trim( $subPage, '/' );
+			if ( $group !== '' ) {
+				$this->activeGroup = $group;
+			}
+		}
+		parent::execute( $subPage );
+	}
+
 	public function getRatingGroup(): string {
-		return Store::GROUP_DEFAULT;
+		return $this->activeGroup;
 	}
 
 	/**
 	 * Allow "Special:查看文章评分" via the translated alias (pagePath).
 	 *
-	 * NOTE (MW 1.41+): getDescription() MUST return a Message object;
-	 * returning a string is deprecated and hard-fails in newer versions.
-	 * There is NO Message::newFromText() — simply return $this->msg().
+	 * NOTE (MW 1.41+): getDescription() MUST return a Message object.
 	 */
 	public function getDescription(): Message {
+		if ( $this->activeGroup !== '' ) {
+			return $this->msg( 'pagerating-group-special-desc', $this->activeGroup );
+		}
 		return $this->msg( 'pagerating-special-title' );
 	}
 
 	public function getTitleMsg(): Message {
+		if ( $this->activeGroup !== '' ) {
+			return $this->msg( 'pagerating-group-special-title', $this->activeGroup );
+		}
 		return $this->msg( 'pagerating-special-title' );
 	}
 
@@ -53,26 +75,36 @@ class SpecialViewRatings extends SpecialRatingsBase {
 	}
 
 	/**
-	 * List the per-sub-page group special pages below the main table so
-	 * admins can jump straight to e.g. Special:Crossover.
+	 * Below the main table: on the default page, list the sub-template
+	 * groups as Special:ViewRatings/X links; on a group page, show a
+	 * link back to the full ranking.
 	 */
 	protected function renderAfterTable( array $rows ): string {
+		if ( $this->activeGroup !== '' ) {
+			$back = Title::makeTitle( NS_SPECIAL, 'ViewRatings' );
+			return Html::rawElement(
+				'p',
+				[ 'class' => 'pagerating-groups-note' ],
+				Html::rawElement(
+					'a',
+					[ 'href' => $back->getLocalURL() ],
+					$this->msg( 'pagerating-group-back-label' )->text()
+				)
+			);
+		}
+
 		$services = MediaWikiServices::getInstance();
 		$store = $services->getService( 'PageRating.Store' );
-		$config = $services->getMainConfig();
-		$groups = Hooks::getKnownGroups( $store, $config );
+		// Only groups that actually have rated pages — NOT every 投票/X
+		// sub-page in the page table (that would list doc/stylesheets/
+		// numbered sub-pages as meaningless group links).
+		$groups = $store->getUsedGroups();
 		if ( !$groups ) {
 			return '';
 		}
 		$links = [];
 		foreach ( $groups as $group ) {
-			$page = $services->getSpecialPageFactory()->getPage( $group );
-			if ( !$page ) {
-				// Conflicted or otherwise unregistered group.
-				$links[] = htmlspecialchars( $group ) . ' (×)';
-				continue;
-			}
-			$url = Title::makeTitle( NS_SPECIAL, $page->getName() )->getLocalURL();
+			$url = Title::makeTitle( NS_SPECIAL, 'ViewRatings/' . $group )->getLocalURL();
 			$links[] = Html::rawElement(
 				'a',
 				[ 'href' => $url ],
